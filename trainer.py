@@ -65,20 +65,30 @@ class MUNIT_Trainer(nn.Module):
         return x_ab, x_ba
 
     def gen_update(self, x_a, x_b, hyperparameters):
+        """
+        Args:
+            x_a: Image domain A
+            x_b: Image domain B
+            hyperparameters:
+
+        Returns:
+
+        """
+
         self.gen_opt.zero_grad()
         s_a = Variable(torch.randn(x_a.size(0), self.style_dim, 1, 1).cuda())
         s_b = Variable(torch.randn(x_b.size(0), self.style_dim, 1, 1).cuda())
         # encode
-        c_a, s_a_prime = self.gen_a.encode(x_a)
+        c_a, s_a_prime = self.gen_a.encode(x_a) # c_a - content encoding, s_a_prime - style encoding
         c_b, s_b_prime = self.gen_b.encode(x_b)
         # decode (within domain)
-        x_a_recon = self.gen_a.decode(c_a, s_a_prime)
+        x_a_recon = self.gen_a.decode(c_a, s_a_prime) # x_a_recon - reconstruction from content and style vectors
         x_b_recon = self.gen_b.decode(c_b, s_b_prime)
         # decode (cross domain)
-        x_ba = self.gen_a.decode(c_b, s_a)
+        x_ba = self.gen_a.decode(c_b, s_a) # content b, style a
         x_ab = self.gen_b.decode(c_a, s_b)
         # encode again
-        c_b_recon, s_a_recon = self.gen_a.encode(x_ba)
+        c_b_recon, s_a_recon = self.gen_a.encode(x_ba) # encode to get content_b and style_a from cross domain image
         c_a_recon, s_b_recon = self.gen_b.encode(x_ab)
         # decode again (if needed)
         x_aba = self.gen_a.decode(c_a_recon, s_a_prime) if hyperparameters['recon_x_cyc_w'] > 0 else None
