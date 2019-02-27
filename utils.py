@@ -51,40 +51,40 @@ def get_all_data_loaders(conf):
 
     if 'data_root' in conf:
         train_loader_a = get_data_loader_folder(os.path.join(conf['data_root'], 'trainA'), batch_size, True,
-                                              new_size_a, height, width, num_workers, True)
+                                              new_size_a, height, width, num_workers, True, horizontal_flip=conf['horizontal_flip'])
         test_loader_a = get_data_loader_folder(os.path.join(conf['data_root'], 'testA'), batch_size, False,
-                                             new_size_a, new_size_a, new_size_a, num_workers, True)
+                                             new_size_a, new_size_a, new_size_a, num_workers, horizontal_flip=False)
         train_loader_b = get_data_loader_folder(os.path.join(conf['data_root'], 'trainB'), batch_size, True,
-                                              new_size_b, height, width, num_workers, True)
+                                              new_size_b, height, width, num_workers, True, horizontal_flip=conf['horizontal_flip'])
         test_loader_b = get_data_loader_folder(os.path.join(conf['data_root'], 'testB'), batch_size, False,
-                                             new_size_b, new_size_b, new_size_b, num_workers, True)
+                                             new_size_b, new_size_b, new_size_b, num_workers, True, horizontal_flip=False)
     else:
         train_loader_a = get_data_loader_list(conf['data_folder_train_a'], conf['data_list_train_a'], batch_size, True,
-                                                new_size_a, height, width, num_workers, True)
+                                                new_size_a, height, width, num_workers, crop=True, horizontal_flip=conf['horizontal_flip'])
         test_loader_a = get_data_loader_list(conf['data_folder_test_a'], conf['data_list_test_a'], batch_size, False,
-                                                new_size_a, new_size_a, new_size_a, num_workers, True)
+                                                new_size_a, new_size_a, new_size_a, crop=True, horizontal_flip=False)
         train_loader_b = get_data_loader_list(conf['data_folder_train_b'], conf['data_list_train_b'], batch_size, True,
-                                                new_size_b, height, width, num_workers, True)
+                                                new_size_b, height, width, num_workers, crop=True, horizontal_flip=conf['horizontal_flip'])
         test_loader_b = get_data_loader_list(conf['data_folder_test_b'], conf['data_list_test_b'], batch_size, False,
-                                                new_size_b, new_size_b, new_size_b, num_workers, True)
+                                                new_size_b, new_size_b, new_size_b, num_workers, crop=True, horizontal_flip=False)
     return train_loader_a, train_loader_b, test_loader_a, test_loader_b
 
 
 def get_data_loader_list(root, file_list, batch_size, train, new_size=None,
-                           height=256, width=256, num_workers=4, crop=True):
+                           height=256, width=256, num_workers=4, crop=True, horizontal_flip=True):
     transform_list = [transforms.ToTensor(),
                       transforms.Normalize((0.5, 0.5, 0.5),
                                            (0.5, 0.5, 0.5))]
     transform_list = [transforms.RandomCrop((height, width))] + transform_list if crop else transform_list
     transform_list = [transforms.Resize(new_size)] + transform_list if new_size is not None else transform_list
-    transform_list = [transforms.RandomHorizontalFlip()] + transform_list if train else transform_list
+    transform_list = [transforms.RandomHorizontalFlip()] + transform_list if horizontal_flip else transform_list
     transform = transforms.Compose(transform_list)
     dataset = ImageFilelist(root, file_list, transform=transform)
     loader = DataLoader(dataset=dataset, batch_size=batch_size, shuffle=train, drop_last=True, num_workers=num_workers)
     return loader
 
 def get_data_loader_folder(input_folder, batch_size, train, new_size=None,
-                           height=256, width=256, num_workers=4, crop=True):
+                           height=256, width=256, num_workers=4, crop=True, horizontal_flip=True):
     transform_list = [transforms.ToTensor(),
                       transforms.Normalize((0.5, 0.5, 0.5),
                                            (0.5, 0.5, 0.5))]
@@ -385,3 +385,6 @@ def pytorch03_to_pytorch04(state_dict_base, trainer_name):
     state_dict['a'] = __conversion_core(state_dict_base['a'], trainer_name)
     state_dict['b'] = __conversion_core(state_dict_base['b'], trainer_name)
     return state_dict
+
+
+#
