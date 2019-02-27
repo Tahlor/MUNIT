@@ -28,7 +28,7 @@ vgg_w: 0                      # weight of domain-invariant perceptual loss
 
 # model options
 gen:
-  dim: 32                     # number of filters in the bottommost layer
+  dim: 64                     # number of filters in the bottommost layer
   mlp_dim: 256                # number of filters in MLP
   style_dim: 8                # length of style code
   activ: relu                 # activation function [relu/lrelu/prelu/selu/tanh]
@@ -36,7 +36,7 @@ gen:
   n_res: 4                    # number of residual blocks in content encoder/decoder
   pad_type: reflect           # padding type [zero/reflect]
 dis:
-  dim: 32                     # number of filters in the bottommost layer
+  dim: 64                     # number of filters in the bottommost layer
   norm: none                  # normalization layer [none/bn/in/ln]
   activ: lrelu                # activation function [relu/lrelu/prelu/selu/tanh]
   n_layer: 4                  # number of layers in D
@@ -51,8 +51,8 @@ num_workers: 8                              # number of data loading threads
 new_size: 128                               # first resize the shortest image side to this size
 resize_height: 
 resize_width:
-crop_image_height: 128                      # random crop image of this height
-crop_image_width: 128                       # random crop image of this width
+crop_image_height: 64                      # random crop image of this height
+crop_image_width: 1280                       # random crop image of this width
 data_root: ./datasets/handwriting/     		# dataset folder location
 
 #data_folder_train_a: ./datasets/demo_edges2handbags/trainA
