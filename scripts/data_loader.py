@@ -43,10 +43,6 @@ class DataLoader(Dataset):
         self.idx_to_class = dict(zip(self.meta_data.model_code, self.meta_data.model))
         self.class_to_idx = dict(zip(self.meta_data.model, self.meta_data.model_code))
         print(len(self.idx_to_class.items()))
-        #self.inverted_weights = self.inverted_weights/self.inverted_weights.sum()
-        #print(self.meta_data.model_code)
-        #print(self.inverted_weights)
-        #print(self.inverted_weights.sum())
 
     def verify(self):
         bad_files = []

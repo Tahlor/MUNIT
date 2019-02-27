@@ -55,3 +55,11 @@ crop_image_height: 128                      # random crop image of this height
 crop_image_width: 128                       # random crop image of this width
 data_root: ./datasets/handwriting/     		# dataset folder location
 
+#data_folder_train_a: ./datasets/demo_edges2handbags/trainA
+#data_list_train_a: ./datasets/demo_edges2handbags/list_trainA.txt
+#data_folder_test_a: ./datasets/demo_edges2handbags/testA
+#data_list_test_a: ./datasets/demo_edges2handbags/list_testA.txt
+#data_folder_train_b: ./datasets/demo_edges2handbags/trainB
+#data_list_train_b: ./datasets/demo_edges2handbags/list_trainB.txt
+#data_folder_test_b: ./datasets/demo_edges2handbags/testB
+#data_list_test_b: ./datasets/demo_edges2handbags/list_testB.txt

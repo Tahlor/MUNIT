@@ -24,8 +24,6 @@ parser.add_argument("--resume", action="store_true")
 parser.add_argument('--trainer', type=str, default='MUNIT', help="MUNIT|UNIT")
 opts = parser.parse_args()
 
-opts.config = r"./configs/edges2shoes_folder_small.yaml"
-
 cudnn.benchmark = True
 
 # Load experiment setting
