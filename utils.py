@@ -279,7 +279,8 @@ def weights_init(init_type='gaussian'):
             elif init_type == 'xavier':
                 init.xavier_normal_(m.weight.data, gain=math.sqrt(2))
             elif init_type == 'kaiming':
-                init.kaiming_normal_(m.weight.data, a=0, mode='fan_in')
+                #init.kaiming_normal_(m.weight.data, a=0, mode='fan_in')
+                init.normal_(m.weight.data, 0.0, 0.02)
             elif init_type == 'orthogonal':
                 init.orthogonal_(m.weight.data, gain=math.sqrt(2))
             elif init_type == 'default':
