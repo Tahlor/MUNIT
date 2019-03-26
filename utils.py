@@ -18,6 +18,11 @@ import yaml
 import numpy as np
 import torch.nn.init as init
 import time
+from PIL import Image
+import fnmatch
+import re
+
+
 # Methods
 # get_all_data_loaders      : primary data loader interface (load trainA, testA, trainB, testB)
 # get_data_loader_list      : list-based data loader
@@ -58,6 +63,7 @@ def get_all_data_loaders(conf):
                                               new_size_b, height, width, num_workers, True, horizontal_flip=conf['horizontal_flip'])
         test_loader_b = get_data_loader_folder(os.path.join(conf['data_root'], 'testB'), batch_size, False,
                                              new_size_b, new_size_b, new_size_b, num_workers, True, horizontal_flip=False)
+        folders =(os.path.join(conf['data_root'], 'trainA'), os.path.join(conf['data_root'], 'trainB'), os.path.join(conf['data_root'], 'testA'), os.path.join(conf['data_root'], 'testB'))
     else:
         train_loader_a = get_data_loader_list(conf['data_folder_train_a'], conf['data_list_train_a'], batch_size, True,
                                                 new_size_a, height, width, num_workers, crop=True, horizontal_flip=conf['horizontal_flip'])
@@ -67,7 +73,8 @@ def get_all_data_loaders(conf):
                                                 new_size_b, height, width, num_workers, crop=True, horizontal_flip=conf['horizontal_flip'])
         test_loader_b = get_data_loader_list(conf['data_folder_test_b'], conf['data_list_test_b'], batch_size, False,
                                                 new_size_b, new_size_b, new_size_b, num_workers, crop=True, horizontal_flip=False)
-    return train_loader_a, train_loader_b, test_loader_a, test_loader_b
+        folders =(conf['data_folder_train_a'], conf['data_folder_train_b'], conf['data_folder_test_a'], conf['data_folder_test_b'])
+    return train_loader_a, train_loader_b, test_loader_a, test_loader_b, folders
 
 
 def get_data_loader_list(root, file_list, batch_size, train, new_size=None,
@@ -90,7 +97,7 @@ def get_data_loader_folder(input_folder, batch_size, train, new_size=None,
                                            (0.5, 0.5, 0.5))]
     transform_list = [transforms.RandomCrop((height, width))] + transform_list if crop else transform_list
     transform_list = [transforms.Resize(new_size)] + transform_list if new_size is not None else transform_list
-    transform_list = [transforms.RandomHorizontalFlip()] + transform_list if train else transform_list
+    transform_list = [transforms.RandomHorizontalFlip()] + transform_list if horizontal_flip else transform_list
     transform = transforms.Compose(transform_list)
     dataset = ImageFolder(input_folder, transform=transform)
     loader = DataLoader(dataset=dataset, batch_size=batch_size, shuffle=train, drop_last=True, num_workers=num_workers)
@@ -387,4 +394,95 @@ def pytorch03_to_pytorch04(state_dict_base, trainer_name):
     return state_dict
 
 
-#
+def check_files(folder):
+    for ds,sds,fs in os.walk(folder):
+        for f in fs:
+            path = os.path.join(folder, f)
+            statinfo = os.stat(path)
+            if not statinfo.st_size:
+                print(f, statinfo.st_size)
+                os.remove(path)
+
+def file_is_good(path):
+    try:
+        Image.open(path).convert('RGB')
+        return True
+    except:
+        return False
+
+# def get_config(config="./config/main.yaml"):
+#     with open(config, 'r') as stream:
+#         return yaml.load(stream)
+
+def mkdir(path):
+    try:
+        os.makedirs(path)
+    except:
+        pass
+
+
+def checkpoint(path, name=None):
+    """ Check if check point is a directory. If it is, create a new checkpoint in the directory that increments previous.
+        Return unchanged if anything else
+
+    Path - a folder - create next new checkpoint
+    Path - do nothing
+    """
+    if os.path.isdir(path) or not os.path.exists(path):
+        mkdir(path)
+        return increment_path(name, path, make_directory=False)
+    else:
+        return path
+
+
+def find_files(base, pattern):
+    '''Return list of files matching pattern in base folder.'''
+    matching_files_and_folders = fnmatch.filter(os.listdir(base), pattern)
+    return len(matching_files_and_folders) > 0
+
+
+def get_max_file(path, ignore=None):
+    """ Gets the file with the highest (first) number in the string, ignoring the "ignore" string
+    Args:
+        path (str): Folder to search
+    Returns:
+
+    """
+    if ignore:
+        filtered = [p for p in os.listdir(path) if not re.search(ignore, p)]
+    else:
+        filtered = os.listdir(path)
+    numbers = [(int(re.search("^[0-9]+", p)[0]), p) for p in filtered if re.search("^[0-9]+", p)]
+    n, npath = max(numbers) if numbers else (0, "")
+    # print("Last File Version: {}".format(npath))
+    return n, os.path.join(path, npath)
+
+
+def increment_path(name="", base_path="./logs", make_directory=False, ignore="partial"):
+    """
+
+    Args:
+        name: Base name of directory to be preceded by numeral (e.g. 2MyLog)
+        base_path: Log directory
+        make_directory: Make the directory
+        ignore: Don't include files matching this pattern when finding max number
+    Returns:
+
+    """
+
+    # Check for existence
+    mkdir(base_path)
+    n, npath = get_max_file(base_path, ignore=ignore)
+
+    # Create
+    logdir = os.path.join(base_path, "{:02d}_{}".format(n + 1, name))
+    if make_directory:
+        mkdir(logdir)
+    return logdir
+
+
+if __name__ == '__main__':
+    x = increment_path("vgg16.pt", base_path="logs")
+    print(x)
+    y = get_max_file("./checkpoints/vgg16")
+    print(y)

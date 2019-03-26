@@ -5,8 +5,16 @@ Licensed under the CC BY-NC-SA 4.0 license (https://creativecommons.org/licenses
 import torch.utils.data as data
 import os.path
 
-def default_loader(path):
-    return Image.open(path).convert('RGB')
+def default_loader(path, color="L"):
+    """
+    Args:
+        path:
+        color: L for grayscale, RGB for color
+
+    Returns:
+
+    """
+    return Image.open(path).convert(color)
 
 
 def default_flist_reader(flist):
@@ -32,7 +40,9 @@ class ImageFilelist(data.Dataset):
 
     def __getitem__(self, index):
         impath = self.imlist[index]
+        #print(impath)
         img = self.loader(os.path.join(self.root, impath))
+        #print(img)
         if self.transform is not None:
             img = self.transform(img)
 

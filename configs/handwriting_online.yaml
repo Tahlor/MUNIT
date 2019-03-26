@@ -52,14 +52,16 @@ new_size: 64                               # first resize the shortest image sid
 crop_image_height: 64                      # random crop image of this height
 crop_image_width: 1280                     # random crop image of this width
 horizontal_flip: False
+# 64 x 1280
+# 48 x 960
 
-data_root: ./datasets/handwriting/         # dataset folder location
-
-# data_folder_train_a: ./datasets/demo_edges2handbags/trainA
-# data_list_train_a: ./datasets/demo_edges2handbags/list_trainA.txt
-# data_folder_test_a: ./datasets/demo_edges2handbags/testA
-# data_list_test_a: ./datasets/demo_edges2handbags/list_testA.txt
-# data_folder_train_b: ./datasets/demo_edges2handbags/trainB
-# data_list_train_b: ./datasets/demo_edges2handbags/list_trainB.txt
-# data_folder_test_b: ./datasets/demo_edges2handbags/testB
-# data_list_test_b: ./datasets/demo_edges2handbags/list_testB.txt
+#data_root: ./datasets/handwriting/         # dataset folder location
+#ln -s dest name
+data_folder_train_a: ./datasets/handwriting/train_online
+data_list_train_a: ./datasets/handwriting/train_online.txt
+data_folder_test_a: ./datasets/handwriting/test_online
+data_list_test_a: ./datasets/handwriting/test_online.txt
+data_folder_train_b: ./datasets/handwriting/train_offline
+data_list_train_b: ./datasets/handwriting/train_offline.txt
+data_folder_test_b: ./datasets/handwriting/test_offline
+data_list_test_b: ./datasets/handwriting/test_offline.txt
