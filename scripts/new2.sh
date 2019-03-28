@@ -1,7 +1,7 @@
 #!/bin/bash
 
 #SBATCH --time=10:00:00   # walltime
-#SBATCH --ntasks=1   # number of processor cores (i.e. tasks)
+#SBATCH --ntasks=3   # number of processor cores (i.e. tasks)
 #SBATCH --nodes=1   # number of nodes
 ##SBATCH --exclusive   # number of nodes
 #SBATCH --mem-per-cpu=16000M   # memory per CPU core
@@ -23,7 +23,7 @@ export PATH="/fslhome/tarch/anaconda3/envs/munit/bin:$PATH"
 which python
 
 cd "/fslhome/tarch/compute/research/handwriting/MUNIT"
-python -u train.py --config ./configs/handwriting_online.yaml
+python -u train.py --config ./configs/handwriting_online.yaml --check_files
 
 # To run:
 #sbatch ./run.sh

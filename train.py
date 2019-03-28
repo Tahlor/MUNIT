@@ -21,13 +21,12 @@ import tensorboardX
 import shutil
 import utils
 
-
 parser = argparse.ArgumentParser()
 parser.add_argument('--config', type=str, default='configs/handwriting.yaml', help='Path to the config file.')
 parser.add_argument('--output_path', type=str, default='.', help="outputs path")
 parser.add_argument("--resume", action="store_true")
 parser.add_argument('--trainer', type=str, default='MUNIT', help="MUNIT|UNIT")
-parser.add_argument('--check_files', type=bool, default=False, help="Check files first")
+parser.add_argument('--check_files', action="store_true")
 
 opts = parser.parse_args()
 if computer_name=="Kant":
@@ -74,7 +73,6 @@ output_directory = os.path.join(opts.output_path + "/outputs", model_name)
 output_directory = utils.increment_path(name="Run", base_path=output_directory, make_directory=True)
 checkpoint_directory, image_directory = prepare_sub_folder(output_directory)
 shutil.copy(opts.config, os.path.join(output_directory, 'config.yaml')) # copy config file to output folder
-
 
 # Start training
 iterations = trainer.resume(checkpoint_directory, hyperparameters=config) if opts.resume else 0
