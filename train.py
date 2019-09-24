@@ -2,12 +2,19 @@
 Copyright (C) 2018 NVIDIA Corporation.  All rights reserved.
 Licensed under the CC BY-NC-SA 4.0 license (https://creativecommons.org/licenses/by-nc-sa/4.0/legalcode).
 """
+import os
+os.environ["CUDA_DEVICE_ORDER"]="PCI_BUS_ID"
+os.environ['CUDA_VISIBLE_DEVICES']='0' # 0 is the 2080ti
+#os.environ['CUDA_VISIBLE_DEVICES']=''
+import torch
+
 from utils import get_all_data_loaders, prepare_sub_folder, write_html, write_loss, get_config, write_2images, Timer
 import argparse
 from torch.autograd import Variable
 from trainer import MUNIT_Trainer, UNIT_Trainer
 import torch.backends.cudnn as cudnn
 import torch
+
 import socket
 computer_name = socket.gethostname()
 
@@ -21,6 +28,8 @@ import tensorboardX
 import shutil
 import utils
 
+torch.cuda.empty_cache()
+
 parser = argparse.ArgumentParser()
 parser.add_argument('--config', type=str, default='configs/handwriting.yaml', help='Path to the config file.')
 parser.add_argument('--output_path', type=str, default='.', help="outputs path")
@@ -29,9 +38,10 @@ parser.add_argument('--trainer', type=str, default='MUNIT', help="MUNIT|UNIT")
 parser.add_argument('--check_files', action="store_true")
 
 opts = parser.parse_args()
-if computer_name=="Kant":
-    opts.config = 'configs/handwriting_test.yaml'
-    opts.check_files = False
+if computer_name=="Galois":
+    opts.config = 'configs/handwriting_online.yaml'
+    opts.check_files = True
+    print("Running on Galois, config {}, check_files {}".format(opts.config, opts.check_files))
 
 cudnn.benchmark = True
 
@@ -53,10 +63,13 @@ else:
 trainer.cuda()
 train_loader_a, train_loader_b, test_loader_a, test_loader_b, folders = get_all_data_loaders(config)
 
+
 if opts.check_files:
+    print("Checking files...")
     for folder in folders:
         print(folder)
         utils.check_files(folder)
+    print("Done checking files.")
 
 print(train_loader_a.dataset[0])
 train_display_images_a = torch.stack([train_loader_a.dataset[i] for i in range(display_size)]).cuda()
@@ -78,38 +91,38 @@ shutil.copy(opts.config, os.path.join(output_directory, 'config.yaml')) # copy c
 iterations = trainer.resume(checkpoint_directory, hyperparameters=config) if opts.resume else 0
 while True:
     for it, (images_a, images_b) in enumerate(zip(train_loader_a, train_loader_b)):
-        trainer.update_learning_rate()
-        images_a, images_b = images_a.cuda().detach(), images_b.cuda().detach()
+            trainer.update_learning_rate()
+            images_a, images_b = images_a.cuda().detach(), images_b.cuda().detach()
 
-        with Timer("Elapsed time in update: %f"):
-            # Main training code
-            trainer.dis_update(images_a, images_b, config)
-            trainer.gen_update(images_a, images_b, config)
-            torch.cuda.synchronize()
+            with Timer("Elapsed time in update: %f"):
+                # Main training code
+                trainer.dis_update(images_a, images_b, config)
+                trainer.gen_update(images_a, images_b, config)
+                torch.cuda.synchronize()
 
-        # Dump training stats in log file
-        if (iterations + 1) % config['log_iter'] == 0:
-            print("Iteration: %08d/%08d" % (iterations + 1, max_iter))
-            write_loss(iterations, trainer, train_writer)
+            # Dump training stats in log file
+            if (iterations + 1) % config['log_iter'] == 0:
+                print("Iteration: %08d/%08d" % (iterations + 1, max_iter))
+                write_loss(iterations, trainer, train_writer)
 
-        # Write images
-        if (iterations + 1) % config['image_save_iter'] == 0:
-            with torch.no_grad():
-                test_image_outputs = trainer.sample(test_display_images_a, test_display_images_b)
-                train_image_outputs = trainer.sample(train_display_images_a, train_display_images_b)
-            write_2images(test_image_outputs, display_size, image_directory, 'test_%08d' % (iterations + 1))
-            write_2images(train_image_outputs, display_size, image_directory, 'train_%08d' % (iterations + 1))
-            # HTML
-            write_html(output_directory + "/index.html", iterations + 1, config['image_save_iter'], 'images')
+            # Write images
+            if (iterations + 1) % config['image_save_iter'] == 0:
+                with torch.no_grad():
+                    test_image_outputs = trainer.sample(test_display_images_a, test_display_images_b)
+                    train_image_outputs = trainer.sample(train_display_images_a, train_display_images_b)
+                write_2images(test_image_outputs, display_size, image_directory, 'test_%08d' % (iterations + 1))
+                write_2images(train_image_outputs, display_size, image_directory, 'train_%08d' % (iterations + 1))
+                # HTML
+                write_html(output_directory + "/index.html", iterations + 1, config['image_save_iter'], 'images')
 
-        if (iterations + 1) % config['image_display_iter'] == 0:
-            with torch.no_grad():
-                image_outputs = trainer.sample(train_display_images_a, train_display_images_b)
-            write_2images(image_outputs, display_size, image_directory, 'train_current')
+            if (iterations + 1) % config['image_display_iter'] == 0:
+                with torch.no_grad():
+                    image_outputs = trainer.sample(train_display_images_a, train_display_images_b)
+                write_2images(image_outputs, display_size, image_directory, 'train_current')
 
-        # Save network weights
-        if (iterations + 1) % config['snapshot_save_iter'] == 0:
-            trainer.save(checkpoint_directory, iterations)
+            # Save network weights
+            if (iterations + 1) % config['snapshot_save_iter'] == 0:
+                trainer.save(checkpoint_directory, iterations)
 
         iterations += 1
         if iterations >= max_iter:

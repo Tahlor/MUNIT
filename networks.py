@@ -220,6 +220,22 @@ class ContentEncoder(nn.Module):
     def forward(self, x):
         return self.model(x)
 
+
+class Interpolate(nn.Module):
+    """ Wrapper around interp to skirt Upsample warning
+    """
+    def __init__(self, size=None, scale_factor=None, mode='nearest', align_corners=None):
+        super(Interpolate, self).__init__()
+        self.interp = nn.functional.interpolate
+        self.size = size
+        self.scale_factor = scale_factor
+        self.mode = mode
+        self.align_corners = align_corners
+
+    def forward(self, x):
+        x = self.interp(x, self.size, self.scale_factor, self.mode, self.align_corners)
+        return x
+
 class Decoder(nn.Module):
     def __init__(self, n_upsample, n_res, dim, output_dim, res_norm='adain', activ='relu', pad_type='zero'):
         super(Decoder, self).__init__()
@@ -227,9 +243,10 @@ class Decoder(nn.Module):
         self.model = []
         # AdaIN residual blocks
         self.model += [ResBlocks(n_res, dim, res_norm, activ, pad_type=pad_type)]
+
         # upsampling blocks
         for i in range(n_upsample):
-            self.model += [nn.Upsample(scale_factor=2),
+            self.model += [Interpolate(scale_factor=2),
                            Conv2dBlock(dim, dim // 2, 5, 1, 2, norm='ln', activation=activ, pad_type=pad_type)]
             dim //= 2
         # use reflection padding in the last conv layer

@@ -5,7 +5,7 @@ Licensed under the CC BY-NC-SA 4.0 license (https://creativecommons.org/licenses
 import torch.utils.data as data
 import os.path
 
-def default_loader(path, color="L"):
+def default_loader(path, color="RGB"):
     """
     Args:
         path:
@@ -88,7 +88,7 @@ import os.path
 
 IMG_EXTENSIONS = [
     '.jpg', '.JPG', '.jpeg', '.JPEG',
-    '.png', '.PNG', '.ppm', '.PPM', '.bmp', '.BMP',
+    '.png', '.PNG', '.ppm', '.PPM', '.bmp', '.BMP', '.tif', '.TIF'
 ]
 
 

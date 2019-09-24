@@ -2,7 +2,8 @@
 Copyright (C) 2018 NVIDIA Corporation.  All rights reserved.
 Licensed under the CC BY-NC-SA 4.0 license (https://creativecommons.org/licenses/by-nc-sa/4.0/legalcode).
 """
-from torch.utils.serialization import load_lua
+import torchfile
+#torch.utils.serialization.load_lua
 from torch.utils.data import DataLoader
 from networks import Vgg16
 from torch.autograd import Variable
@@ -54,6 +55,7 @@ def get_all_data_loaders(conf):
     height = conf['crop_image_height']
     width = conf['crop_image_width']
 
+    # Use a folder with folders like trainA, default
     if 'data_root' in conf:
         train_loader_a = get_data_loader_folder(os.path.join(conf['data_root'], 'trainA'), batch_size, True,
                                               new_size_a, height, width, num_workers, True, horizontal_flip=conf['horizontal_flip'])
@@ -76,9 +78,9 @@ def get_all_data_loaders(conf):
         folders =(conf['data_folder_train_a'], conf['data_folder_train_b'], conf['data_folder_test_a'], conf['data_folder_test_b'])
     return train_loader_a, train_loader_b, test_loader_a, test_loader_b, folders
 
-
+from loader import ImageFolderWithPaths
 def get_data_loader_list(root, file_list, batch_size, train, new_size=None,
-                           height=256, width=256, num_workers=4, crop=True, horizontal_flip=True):
+                           height=256, width=256, num_workers=4, crop=True, horizontal_flip=True, shuffle=True):
     transform_list = [transforms.ToTensor(),
                       transforms.Normalize((0.5, 0.5, 0.5),
                                            (0.5, 0.5, 0.5))]
@@ -87,8 +89,8 @@ def get_data_loader_list(root, file_list, batch_size, train, new_size=None,
     transform_list = [transforms.RandomHorizontalFlip()] + transform_list if horizontal_flip else transform_list
     transform = transforms.Compose(transform_list)
     dataset = ImageFilelist(root, file_list, transform=transform)
-    loader = DataLoader(dataset=dataset, batch_size=batch_size, shuffle=train, drop_last=True, num_workers=num_workers)
-    return loader
+    loader = DataLoader(dataset=dataset, batch_size=batch_size, shuffle=shuffle, drop_last=True, num_workers=num_workers)
+    return loader, dataset
 
 def get_data_loader_folder(input_folder, batch_size, train, new_size=None,
                            height=256, width=256, num_workers=4, crop=True, horizontal_flip=True):
@@ -121,6 +123,12 @@ def __write_images(image_outputs, display_image_num, file_name):
     image_tensor = torch.cat([images[:display_image_num] for images in image_outputs], 0)
     image_grid = vutils.make_grid(image_tensor.data, nrow=display_image_num, padding=0, normalize=True)
     vutils.save_image(image_grid, file_name, nrow=1)
+
+def save_image(path, image_outputs):
+    image_outputs = [images.expand(-1, 3, -1, -1) for images in image_outputs]
+    image_tensor = torch.cat([images[:1] for images in image_outputs], 0)
+    image_grid = vutils.make_grid(image_tensor.data, nrow=1, padding=0, normalize=True)
+    vutils.save_image(image_grid, path, nrow=1)
 
 
 def write_2images(image_outputs, display_image_num, image_directory, postfix):
@@ -394,20 +402,32 @@ def pytorch03_to_pytorch04(state_dict_base, trainer_name):
     return state_dict
 
 
-def check_files(folder):
+def check_files(folder, deep=True):
+    file_is_good=file_is_good_deep if deep else file_is_good_simple
+
     for ds,sds,fs in os.walk(folder):
         for f in fs:
             path = os.path.join(folder, f)
-            statinfo = os.stat(path)
-            if not statinfo.st_size:
-                print(f, statinfo.st_size)
+            if not file_is_good(path):
+                print("{} is bad".format(f))
                 os.remove(path)
 
-def file_is_good(path):
-    try:
-        Image.open(path).convert('RGB')
+def file_is_good_simple(path):
+    statinfo = os.stat(path)
+    if not statinfo.st_size:
+        return False
+    else:
         return True
-    except:
+
+def file_is_good_deep(path):
+
+    try:
+        image = Image.open(path).convert('RGB')
+        assert np.array(image).shape == (64,1280,3)
+        return True
+    except(Exception) as e:
+        print(e)
+        print("Problem with {}".format(path))
         return False
 
 # def get_config(config="./config/main.yaml"):
@@ -479,6 +499,25 @@ def increment_path(name="", base_path="./logs", make_directory=False, ignore="pa
     if make_directory:
         mkdir(logdir)
     return logdir
+
+def create_txt_files(data_directory):
+    data_directory = r"/fslhome/tarch/compute/research/handwriting/MUNIT/datasets/handwriting"
+
+    for sub in ["test_font","test_offline","train_font","train_offline","train_online","test_online"]:
+        path  = os.path.join(data_directory,sub)
+        create_txt_file(path, sub)
+
+def create_txt_file(data_directory, file_name):
+        i=1
+        with open(os.path.join(data_directory, file_name+".txt"), "w+") as text_file:
+            for d,s,fs in os.walk(data_directory):
+                for f in fs:
+                    if f[-4:] in [".tif",".png"]:
+                        i+=1
+                        if i % 3000 == 0:
+                            print(i)
+                        text_file.write(os.path.join(data_directory,f)+"\n")
+
 
 
 if __name__ == '__main__':
