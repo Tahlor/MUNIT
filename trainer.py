@@ -133,6 +133,20 @@ class MUNIT_Trainer(nn.Module):
         return torch.mean((self.instancenorm(img_fea) - self.instancenorm(target_fea)) ** 2)
 
     def sample(self, x_a, x_b):
+        """
+
+        Args:
+            x_a:
+            x_b:
+
+        Returns:
+            (tuple): domainA: original
+                              reconstruction
+                              A to B - fixed sample noise
+                              A to B - random noise
+
+        """
+
         self.eval()
         s_a1 = Variable(self.s_a)
         s_b1 = Variable(self.s_b)
@@ -153,6 +167,25 @@ class MUNIT_Trainer(nn.Module):
         x_ab1, x_ab2 = torch.cat(x_ab1), torch.cat(x_ab2)
         self.train()
         return x_a, x_a_recon, x_ab1, x_ab2, x_b, x_b_recon, x_ba1, x_ba2
+
+    def sampleB_toA(self, x_b):
+        """
+        Args:
+            x_b:
+
+        Returns:
+            (tuple, length=batch): INPUT IMAGES to domain A
+        """
+
+        self.eval()
+        s_a2 = Variable(torch.randn(x_b.size(0), self.style_dim, 1, 1).cuda())
+
+        x_ba1 = []
+
+        for i in range(x_b.size(0)): # loop through batches
+            c_b, s_b_fake = self.gen_b.encode(x_b[i].unsqueeze(0))
+            x_ba1.append(self.gen_a.decode(c_b, s_a2[i].unsqueeze(0)))
+        return x_ba1
 
     def dis_update(self, x_a, x_b, hyperparameters):
         self.dis_opt.zero_grad()

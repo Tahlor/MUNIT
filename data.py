@@ -5,7 +5,7 @@ Licensed under the CC BY-NC-SA 4.0 license (https://creativecommons.org/licenses
 import torch.utils.data as data
 import os.path
 
-def default_loader(path, color="RGB"):
+def default_loader(path, color="L"):
     """
     Args:
         path:
@@ -16,6 +16,16 @@ def default_loader(path, color="RGB"):
     """
     return Image.open(path).convert(color)
 
+def color_loader(path, color="RGB"):
+    """
+    Args:
+        path:
+        color: L for grayscale, RGB for color
+
+    Returns:
+
+    """
+    return Image.open(path).convert(color)
 
 def default_flist_reader(flist):
     """
@@ -50,7 +60,6 @@ class ImageFilelist(data.Dataset):
 
     def __len__(self):
         return len(self.imlist)
-
 
 class ImageLabelFilelist(data.Dataset):
     def __init__(self, root, flist, transform=None,
@@ -91,10 +100,8 @@ IMG_EXTENSIONS = [
     '.png', '.PNG', '.ppm', '.PPM', '.bmp', '.BMP', '.tif', '.TIF'
 ]
 
-
 def is_image_file(filename):
     return any(filename.endswith(extension) for extension in IMG_EXTENSIONS)
-
 
 def make_dataset(dir):
     images = []

@@ -22,7 +22,7 @@ import time
 from PIL import Image
 import fnmatch
 import re
-
+import data
 
 # Methods
 # get_all_data_loaders      : primary data loader interface (load trainA, testA, trainB, testB)
@@ -44,7 +44,7 @@ import re
 # get_scheduler
 # weights_init
 
-def get_all_data_loaders(conf):
+def get_all_data_loaders_better(conf):
     batch_size = conf['batch_size']
     num_workers = conf['num_workers']
     if 'new_size' in conf:
@@ -56,52 +56,100 @@ def get_all_data_loaders(conf):
     width = conf['crop_image_width']
 
     # Use a folder with folders like trainA, default
+
+    def prep_loader(input_folder, batch_size=batch_size, train=True, new_size=None,
+                               height=height, width=width, num_workers=4, crop=False, horizontal_flip=False,
+                                channels = 1):
+        normalization = ((0.5, 0.5, 0.5), (0.5, 0.5, 0.5)) if channels == 3 else ((0.5,), (0.5,))
+        transform_list = [transforms.ToTensor(),
+                          transforms.Normalize(*normalization)]
+        transform_list = [transforms.RandomCrop((height, width))] + transform_list if crop else transform_list
+        transform_list = [transforms.Resize(new_size)] + transform_list if new_size is not None else transform_list
+        transform_list = [transforms.RandomHorizontalFlip()] + transform_list if horizontal_flip else transform_list
+        transform = transforms.Compose(transform_list)
+
+        loader = data.default_loader if channels == 1 else data.color_loader
+        dataset = ImageFolder(input_folder, transform=transform, return_paths=True, loader=loader)
+        dataset2 = ImageFolder(input_folder, transform=transform, loader=loader)
+        loader = DataLoader(dataset=dataset2, batch_size=batch_size, shuffle=train, drop_last=True,
+                            num_workers=num_workers)
+        #loader = ImageFolderWithPaths(input_folder, transform=transform)  # our custom dataset
+        return loader, dataset
+
+
+    train_loader_a = prep_loader(os.path.join(conf['data_root'], 'trainA'), batch_size=batch_size)
+    train_loader_b = prep_loader(os.path.join(conf['data_root'], 'trainB'), batch_size=batch_size)
+    test_loader_a = prep_loader(os.path.join(conf['data_root'], 'testA'), batch_size=batch_size)
+    test_loader_b = prep_loader(os.path.join(conf['data_root'], 'testB'), batch_size=batch_size)
+
+    folders =(os.path.join(conf['data_root'], 'trainA'), os.path.join(conf['data_root'], 'trainB'), os.path.join(conf['data_root'], 'testA'), os.path.join(conf['data_root'], 'testB'))
+
+    return train_loader_a, train_loader_b, test_loader_a, test_loader_b, folders
+
+def get_all_data_loaders(conf):
+    batch_size = conf['batch_size']
+    num_workers = conf['num_workers']
+    if 'new_size' in conf:
+        new_size_a = new_size_b = conf['new_size']
+    else:
+        new_size_a = conf['new_size_a']
+        new_size_b = conf['new_size_b']
+    height = conf['crop_image_height']
+    width = conf['crop_image_width']
+
+    channels = conf["input_dim_a"]
+
+    # Use a folder with folders like trainA, default
     if 'data_root' in conf:
         train_loader_a = get_data_loader_folder(os.path.join(conf['data_root'], 'trainA'), batch_size, True,
-                                              new_size_a, height, width, num_workers, True, horizontal_flip=conf['horizontal_flip'])
+                                              new_size_a, height, width, num_workers, True, horizontal_flip=conf['horizontal_flip'], channels=channels)
         test_loader_a = get_data_loader_folder(os.path.join(conf['data_root'], 'testA'), batch_size, False,
-                                             new_size_a, new_size_a, new_size_a, num_workers, horizontal_flip=False)
+                                             new_size_a, new_size_a, new_size_a, num_workers, horizontal_flip=False,channels=channels)
         train_loader_b = get_data_loader_folder(os.path.join(conf['data_root'], 'trainB'), batch_size, True,
-                                              new_size_b, height, width, num_workers, True, horizontal_flip=conf['horizontal_flip'])
+                                              new_size_b, height, width, num_workers, True, horizontal_flip=conf['horizontal_flip'],channels=channels)
         test_loader_b = get_data_loader_folder(os.path.join(conf['data_root'], 'testB'), batch_size, False,
-                                             new_size_b, new_size_b, new_size_b, num_workers, True, horizontal_flip=False)
+                                             new_size_b, new_size_b, new_size_b, num_workers, True, horizontal_flip=False,channels=channels)
         folders =(os.path.join(conf['data_root'], 'trainA'), os.path.join(conf['data_root'], 'trainB'), os.path.join(conf['data_root'], 'testA'), os.path.join(conf['data_root'], 'testB'))
     else:
         train_loader_a = get_data_loader_list(conf['data_folder_train_a'], conf['data_list_train_a'], batch_size, True,
-                                                new_size_a, height, width, num_workers, crop=True, horizontal_flip=conf['horizontal_flip'])
+                                                new_size_a, height, width, num_workers, crop=True, horizontal_flip=conf['horizontal_flip'], channels=channels)
         test_loader_a = get_data_loader_list(conf['data_folder_test_a'], conf['data_list_test_a'], batch_size, False,
-                                                new_size_a, new_size_a, new_size_a, crop=True, horizontal_flip=False)
+                                                new_size_a, new_size_a, new_size_a, crop=True, horizontal_flip=False, channels=channels)
         train_loader_b = get_data_loader_list(conf['data_folder_train_b'], conf['data_list_train_b'], batch_size, True,
-                                                new_size_b, height, width, num_workers, crop=True, horizontal_flip=conf['horizontal_flip'])
+                                                new_size_b, height, width, num_workers, crop=True, horizontal_flip=conf['horizontal_flip'], channels=channels)
         test_loader_b = get_data_loader_list(conf['data_folder_test_b'], conf['data_list_test_b'], batch_size, False,
-                                                new_size_b, new_size_b, new_size_b, num_workers, crop=True, horizontal_flip=False)
+                                                new_size_b, new_size_b, new_size_b, num_workers, crop=True, horizontal_flip=False, channels=channels)
         folders =(conf['data_folder_train_a'], conf['data_folder_train_b'], conf['data_folder_test_a'], conf['data_folder_test_b'])
     return train_loader_a, train_loader_b, test_loader_a, test_loader_b, folders
 
 from loader import ImageFolderWithPaths
 def get_data_loader_list(root, file_list, batch_size, train, new_size=None,
-                           height=256, width=256, num_workers=4, crop=True, horizontal_flip=True, shuffle=True):
+                           height=256, width=256, num_workers=4, crop=True, horizontal_flip=True, shuffle=True, channels=1):
+    normalization = ((0.5, 0.5, 0.5), (0.5, 0.5, 0.5)) if channels == 3 else ((0.5,), (0.5,))
+
     transform_list = [transforms.ToTensor(),
-                      transforms.Normalize((0.5, 0.5, 0.5),
-                                           (0.5, 0.5, 0.5))]
+                      transforms.Normalize(*normalization)]
     transform_list = [transforms.RandomCrop((height, width))] + transform_list if crop else transform_list
     transform_list = [transforms.Resize(new_size)] + transform_list if new_size is not None else transform_list
     transform_list = [transforms.RandomHorizontalFlip()] + transform_list if horizontal_flip else transform_list
     transform = transforms.Compose(transform_list)
     dataset = ImageFilelist(root, file_list, transform=transform)
     loader = DataLoader(dataset=dataset, batch_size=batch_size, shuffle=shuffle, drop_last=True, num_workers=num_workers)
-    return loader, dataset
+    return loader
 
 def get_data_loader_folder(input_folder, batch_size, train, new_size=None,
-                           height=256, width=256, num_workers=4, crop=True, horizontal_flip=True):
+                           height=256, width=256, num_workers=4, crop=True, horizontal_flip=True, channels=1):
+
+    normalization = ((0.5, 0.5, 0.5), (0.5, 0.5, 0.5)) if channels == 3 else ((0.5,), (0.5,))
+
     transform_list = [transforms.ToTensor(),
-                      transforms.Normalize((0.5, 0.5, 0.5),
-                                           (0.5, 0.5, 0.5))]
+                      transforms.Normalize(*normalization)]
     transform_list = [transforms.RandomCrop((height, width))] + transform_list if crop else transform_list
     transform_list = [transforms.Resize(new_size)] + transform_list if new_size is not None else transform_list
     transform_list = [transforms.RandomHorizontalFlip()] + transform_list if horizontal_flip else transform_list
     transform = transforms.Compose(transform_list)
-    dataset = ImageFolder(input_folder, transform=transform)
+    loader = data.default_loader if channels == 1 else data.color_loader
+    dataset = ImageFolder(input_folder, transform=transform, loader=loader)
     loader = DataLoader(dataset=dataset, batch_size=batch_size, shuffle=train, drop_last=True, num_workers=num_workers)
     return loader
 
@@ -125,11 +173,14 @@ def __write_images(image_outputs, display_image_num, file_name):
     vutils.save_image(image_grid, file_name, nrow=1)
 
 def save_image(path, image_outputs):
-    image_outputs = [images.expand(-1, 3, -1, -1) for images in image_outputs]
-    image_tensor = torch.cat([images[:1] for images in image_outputs], 0)
-    image_grid = vutils.make_grid(image_tensor.data, nrow=1, padding=0, normalize=True)
-    vutils.save_image(image_grid, path, nrow=1)
-
+    #image_tensor = torch.cat([images[:1] for images in image_outputs], 0)
+    #image_grid = vutils.make_grid(image_tensor.data, nrow=1, padding=0, normalize=True)
+    #vutils.save_image(image_grid, path, nrow=1)
+    from PIL import Image
+    # Add 0.5 after unnormalizing to [0, 255] to round to nearest integer
+    ndarr = image_outputs.mul_(255).add_(0.5).clamp_(0, 255).permute(1, 2, 0).to('cpu', torch.uint8).numpy()
+    im = Image.fromarray(ndarr)
+    im.save(path)
 
 def write_2images(image_outputs, display_image_num, image_directory, postfix):
     n = len(image_outputs)
