@@ -159,7 +159,7 @@ class MUNIT_Trainer(nn.Module):
         s_b1 = Variable(self.s_b)
         s_a2 = self.random_style(x_a, factor=5)
         s_b2 = self.random_style(x_b, factor=5)
-        print(s_a1, s_a2)
+        #print(s_a1, s_a2)
         x_a_recon, x_b_recon, x_ba1, x_ba2, x_ab1, x_ab2 = [], [], [], [], [], []
         for i in range(x_a.size(0)):
             c_a, s_a_fake = self.gen_a.encode(x_a[i].unsqueeze(0))

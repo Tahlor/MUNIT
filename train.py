@@ -62,16 +62,18 @@ else:
 
 trainer.cuda()
 train_loader_a, train_loader_b, test_loader_a, test_loader_b, folders = get_all_data_loaders(config)
+#(train_loader_a, tr_a), (train_loader_b, tr_b), (test_loader_a, test_a), (test_loader_b, test_b), folders = get_all_data_loaders_better(config)
 
-
-if opts.check_files and False:
+if opts.check_files:
     print("Checking files...")
     for folder in folders:
+        if "B" in folder:
+            continue
         print(folder)
-        utils.check_files(folder)
+        utils.check_files(folder, delete_bad=True)
     print("Done checking files.")
 
-print(train_loader_a.dataset[0])
+#print(train_loader_a.dataset[0])
 train_display_images_a = torch.stack([train_loader_a.dataset[i] for i in range(display_size)]).cuda()
 train_display_images_b = torch.stack([train_loader_b.dataset[i] for i in range(display_size)]).cuda()
 test_display_images_a = torch.stack([test_loader_a.dataset[i] for i in range(display_size)]).cuda()

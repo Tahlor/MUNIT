@@ -470,7 +470,7 @@ def pytorch03_to_pytorch04(state_dict_base, trainer_name):
     return state_dict
 
 
-def check_files(folder, deep=True):
+def check_files(folder, deep=True, delete_bad=False):
     file_is_good=file_is_good_deep if deep else file_is_good_simple
 
     for ds,sds,fs in os.walk(folder):
@@ -478,7 +478,8 @@ def check_files(folder, deep=True):
             path = os.path.join(folder, f)
             if not file_is_good(path):
                 print("{} is bad".format(f))
-                os.remove(path)
+                if delete_bad:
+                    os.remove(path)
 
 def file_is_good_simple(path):
     statinfo = os.stat(path)
@@ -491,7 +492,7 @@ def file_is_good_deep(path):
 
     try:
         image = Image.open(path).convert('RGB')
-        assert np.array(image).shape == (64,1280,3)
+        assert np.array(image).shape in [(64,1280,3),(60,1280,3)]
         return True
     except(Exception) as e:
         print(e)
