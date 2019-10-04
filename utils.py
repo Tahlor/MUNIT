@@ -24,6 +24,8 @@ import fnmatch
 import re
 import data
 
+import custom_transforms
+
 # Methods
 # get_all_data_loaders      : primary data loader interface (load trainA, testA, trainB, testB)
 # get_data_loader_list      : list-based data loader
@@ -59,7 +61,7 @@ def get_all_data_loaders_better(conf):
 
     def prep_loader(input_folder, batch_size=batch_size, train=True, new_size=None,
                                height=height, width=width, num_workers=4, crop=False, horizontal_flip=False,
-                                channels = 1):
+                                channels = 1, shuffle=True):
         normalization = ((0.5, 0.5, 0.5), (0.5, 0.5, 0.5)) if channels == 3 else ((0.5,), (0.5,))
         transform_list = [transforms.ToTensor(),
                           transforms.Normalize(*normalization)]
@@ -71,16 +73,15 @@ def get_all_data_loaders_better(conf):
         loader = data.default_loader if channels == 1 else data.color_loader
         dataset = ImageFolder(input_folder, transform=transform, return_paths=True, loader=loader)
         dataset2 = ImageFolder(input_folder, transform=transform, loader=loader)
-        loader = DataLoader(dataset=dataset2, batch_size=batch_size, shuffle=train, drop_last=True,
+        loader = DataLoader(dataset=dataset, batch_size=batch_size, shuffle=shuffle, drop_last=True,
                             num_workers=num_workers)
         #loader = ImageFolderWithPaths(input_folder, transform=transform)  # our custom dataset
         return loader, dataset
 
-
-    train_loader_a = prep_loader(os.path.join(conf['data_root'], 'trainA'), batch_size=batch_size)
-    train_loader_b = prep_loader(os.path.join(conf['data_root'], 'trainB'), batch_size=batch_size)
-    test_loader_a = prep_loader(os.path.join(conf['data_root'], 'testA'), batch_size=batch_size)
-    test_loader_b = prep_loader(os.path.join(conf['data_root'], 'testB'), batch_size=batch_size)
+    train_loader_a = prep_loader(os.path.join(conf['data_root'], 'trainA'), batch_size=batch_size, shuffle=False)
+    train_loader_b = prep_loader(os.path.join(conf['data_root'], 'trainB'), batch_size=batch_size, shuffle=False)
+    test_loader_a = prep_loader(os.path.join(conf['data_root'], 'testA'), batch_size=batch_size, shuffle=False)
+    test_loader_b = prep_loader(os.path.join(conf['data_root'], 'testB'), batch_size=batch_size, shuffle=False)
 
     folders =(os.path.join(conf['data_root'], 'trainA'), os.path.join(conf['data_root'], 'trainB'), os.path.join(conf['data_root'], 'testA'), os.path.join(conf['data_root'], 'testB'))
 
@@ -122,9 +123,7 @@ def get_all_data_loaders(conf):
         folders =(conf['data_folder_train_a'], conf['data_folder_train_b'], conf['data_folder_test_a'], conf['data_folder_test_b'])
     return train_loader_a, train_loader_b, test_loader_a, test_loader_b, folders
 
-from loader import ImageFolderWithPaths
-def get_data_loader_list(root, file_list, batch_size, train, new_size=None,
-                           height=256, width=256, num_workers=4, crop=True, horizontal_flip=True, shuffle=True, channels=1):
+def my_transforms(height=256, width=256, new_size=None, crop=True, horizontal_flip=True, channels=1):
     normalization = ((0.5, 0.5, 0.5), (0.5, 0.5, 0.5)) if channels == 3 else ((0.5,), (0.5,))
 
     transform_list = [transforms.ToTensor(),
@@ -133,6 +132,17 @@ def get_data_loader_list(root, file_list, batch_size, train, new_size=None,
     transform_list = [transforms.Resize(new_size)] + transform_list if new_size is not None else transform_list
     transform_list = [transforms.RandomHorizontalFlip()] + transform_list if horizontal_flip else transform_list
     transform = transforms.Compose(transform_list)
+
+    # transform_list = [transforms.ToTensor(),
+    #                   transforms.Normalize(*normalization), custom_transforms.add_padding()]
+    #transform = transforms.Compose(transform_list)
+
+    return transform
+
+from loader import ImageFolderWithPaths
+def get_data_loader_list(root, file_list, batch_size, train, new_size=None,
+                           height=256, width=256, num_workers=4, crop=True, horizontal_flip=True, shuffle=True, channels=1):
+    transform = my_transforms(height=height, width=width, new_size=new_size, crop=crop, horizontal_flip=horizontal_flip, channels=channels)
     dataset = ImageFilelist(root, file_list, transform=transform)
     loader = DataLoader(dataset=dataset, batch_size=batch_size, shuffle=shuffle, drop_last=True, num_workers=num_workers)
     return loader
@@ -142,12 +152,8 @@ def get_data_loader_folder(input_folder, batch_size, train, new_size=None,
 
     normalization = ((0.5, 0.5, 0.5), (0.5, 0.5, 0.5)) if channels == 3 else ((0.5,), (0.5,))
 
-    transform_list = [transforms.ToTensor(),
-                      transforms.Normalize(*normalization)]
-    transform_list = [transforms.RandomCrop((height, width))] + transform_list if crop else transform_list
-    transform_list = [transforms.Resize(new_size)] + transform_list if new_size is not None else transform_list
-    transform_list = [transforms.RandomHorizontalFlip()] + transform_list if horizontal_flip else transform_list
-    transform = transforms.Compose(transform_list)
+    transform = my_transforms(height=height, width=width, new_size=new_size, crop=crop, horizontal_flip=horizontal_flip,
+                           channels=channels)
     loader = data.default_loader if channels == 1 else data.color_loader
     dataset = ImageFolder(input_folder, transform=transform, loader=loader)
     loader = DataLoader(dataset=dataset, batch_size=batch_size, shuffle=train, drop_last=True, num_workers=num_workers)
@@ -172,20 +178,26 @@ def __write_images(image_outputs, display_image_num, file_name):
     image_grid = vutils.make_grid(image_tensor.data, nrow=display_image_num, padding=0, normalize=True)
     vutils.save_image(image_grid, file_name, nrow=1)
 
-def save_image(path, image_outputs):
+def save_image(path, image_outputs, mode='L'):
     #image_tensor = torch.cat([images[:1] for images in image_outputs], 0)
     #image_grid = vutils.make_grid(image_tensor.data, nrow=1, padding=0, normalize=True)
     #vutils.save_image(image_grid, path, nrow=1)
-    from PIL import Image
     # Add 0.5 after unnormalizing to [0, 255] to round to nearest integer
     ndarr = image_outputs.mul_(255).add_(0.5).clamp_(0, 255).permute(1, 2, 0).to('cpu', torch.uint8).numpy()
-    im = Image.fromarray(ndarr)
+
+    if mode == "L": # grayscale
+        im = Image.fromarray(ndarr[:,:,0], mode)
+    else:
+        im = Image.fromarray(ndarr, mode)
+
     im.save(path)
 
-def write_2images(image_outputs, display_image_num, image_directory, postfix):
+def write_2images(image_outputs, display_image_num, image_directory, postfix, a2b=True, b2a=True):
     n = len(image_outputs)
-    __write_images(image_outputs[0:n//2], display_image_num, '%s/gen_a2b_%s.jpg' % (image_directory, postfix))
-    __write_images(image_outputs[n//2:n], display_image_num, '%s/gen_b2a_%s.jpg' % (image_directory, postfix))
+    if a2b:
+        __write_images(image_outputs[0:n//2], display_image_num, '%s/gen_a2b_%s.jpg' % (image_directory, postfix))
+    if b2a:
+        __write_images(image_outputs[n//2:n], display_image_num, '%s/gen_b2a_%s.jpg' % (image_directory, postfix))
 
 
 def prepare_sub_folder(output_directory):
@@ -291,7 +303,7 @@ def load_vgg16(model_dir):
     if not os.path.exists(os.path.join(model_dir, 'vgg16.weight')):
         if not os.path.exists(os.path.join(model_dir, 'vgg16.t7')):
             os.system('wget https://www.dropbox.com/s/76l3rt4kyi3s8x7/vgg16.t7?dl=1 -O ' + os.path.join(model_dir, 'vgg16.t7'))
-        vgglua = load_lua(os.path.join(model_dir, 'vgg16.t7'))
+        vgglua = torch.load(os.path.join(model_dir, 'vgg16.t7'))
         vgg = Vgg16()
         for (src, dst) in zip(vgglua.parameters()[0], vgg.parameters()):
             dst.data[:] = src
@@ -299,6 +311,11 @@ def load_vgg16(model_dir):
     vgg = Vgg16()
     vgg.load_state_dict(torch.load(os.path.join(model_dir, 'vgg16.weight')))
     return vgg
+
+def load_vgg16(*args, **kwargs):
+    import torchvision.models as models
+    vgg16 = models.vgg16(pretrained=True)
+    return vgg16
 
 def load_inception(model_path):
     state_dict = torch.load(model_path)

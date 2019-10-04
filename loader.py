@@ -12,6 +12,7 @@ class ImageFolderWithPaths(datasets.ImageFolder):
         original_tuple = super(ImageFolderWithPaths, self).__getitem__(index)
         # the image file path
         path = self.imgs[index][0]
+        print(path, self.imgs[index])
         # make a new tuple that includes original and the path
         tuple_with_path = (original_tuple + (path,))
         return tuple_with_path

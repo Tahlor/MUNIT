@@ -1,29 +1,27 @@
 #!/bin/bash
-
-#SBATCH --time=18:00:00   # walltime
-#SBATCH --ntasks=1   # number of processor cores (i.e. tasks)
-#SBATCH --nodes=1   # number of nodes
-##SBATCH --exclusive   # number of nodes
-#SBATCH --mem-per-cpu=16000M   # memory per CPU core
 #SBATCH --gres=gpu:1
-#SBATCH --output="./slurm/handwriting_full.slurm"
-#SBATCH --constraint rhel7&pascal
+#SBATCH -C 'rhel7&pascal'
+#SBATCH --mem 10666
+#SBATCH --ntasks 6
+#SBATCH --output="/panfs/pan.fsl.byu.edu/scr/grp/fslg_hwr/taylor_simple_hwr/slurm_scripts/scripts/log_baseline.slurm"
+#SBATCH --time 36:00:00
+#SBATCH --mail-user=taylornarchibald@gmail.com   # email address
+#SBATCH --mail-type=BEGIN
+#SBATCH --mail-type=END
+#SBATCH --mail-type=FAIL
 
-# Set the max number of threads to use for programs using OpenMP. Should be <= ppn. Does nothing if the program doesn't use OpenMP.
-export OMP_NUM_THREADS=$SLURM_CPUS_ON_NODE
-
-# LOAD MODULES, INSERT CODE, AND RUN YOUR PROGRAMS HERE
 #%Module
 
-cat /etc/os-release
-cat /etc/redhat-release
-
 module purge
-export PATH="/fslhome/tarch/anaconda3/envs/munit/bin:$PATH"
+module load cuda/10.1
+module load cudnn/7.6
+
+export PATH="/fslhome/tarch/anaconda3/envs/munit2/bin:$PATH"
 which python
 
 cd "/fslhome/tarch/compute/research/handwriting/MUNIT"
-python -u train.py --config ./configs/handwriting.yaml
+
+python -u train.py --config ./configs/handwriting_online.yaml --check_files
 
 # To run:
 #sbatch ./run.sh

@@ -9,6 +9,8 @@ import torch
 import torch.nn as nn
 import os
 
+style_scaler = 5
+
 class MUNIT_Trainer(nn.Module):
     def __init__(self, hyperparameters):
         super(MUNIT_Trainer, self).__init__()
@@ -22,9 +24,9 @@ class MUNIT_Trainer(nn.Module):
         self.style_dim = hyperparameters['gen']['style_dim']
 
         # fix the noise used in sampling
-        display_size = int(hyperparameters['display_size'])
-        self.s_a = torch.randn(display_size, self.style_dim, 1, 1).cuda()
-        self.s_b = torch.randn(display_size, self.style_dim, 1, 1).cuda()
+        self.display_size = int(hyperparameters['display_size'])
+        self.s_a = self.random_style()
+        self.s_b = self.random_style()
 
         # Setup the optimizers
         beta1 = hyperparameters['beta1']
@@ -76,8 +78,9 @@ class MUNIT_Trainer(nn.Module):
         """
 
         self.gen_opt.zero_grad()
-        s_a = Variable(torch.randn(x_a.size(0), self.style_dim, 1, 1).cuda())
-        s_b = Variable(torch.randn(x_b.size(0), self.style_dim, 1, 1).cuda())
+        s_a = self.random_style(x_a)
+        s_b = self.random_style(x_b)
+
         # encode
         c_a, s_a_prime = self.gen_a.encode(x_a) # c_a - content encoding, s_a_prime - style encoding
         c_b, s_b_prime = self.gen_b.encode(x_b)
@@ -132,6 +135,10 @@ class MUNIT_Trainer(nn.Module):
         target_fea = vgg(target_vgg)
         return torch.mean((self.instancenorm(img_fea) - self.instancenorm(target_fea)) ** 2)
 
+    def random_style(self, x=None, factor=1):
+        dim = self.display_size if x is None else x.size(0)
+        return Variable(torch.randn(dim, self.style_dim, 1, 1).cuda()) * factor
+
     def sample(self, x_a, x_b):
         """
 
@@ -150,8 +157,9 @@ class MUNIT_Trainer(nn.Module):
         self.eval()
         s_a1 = Variable(self.s_a)
         s_b1 = Variable(self.s_b)
-        s_a2 = Variable(torch.randn(x_a.size(0), self.style_dim, 1, 1).cuda())
-        s_b2 = Variable(torch.randn(x_b.size(0), self.style_dim, 1, 1).cuda())
+        s_a2 = self.random_style(x_a, factor=5)
+        s_b2 = self.random_style(x_b, factor=5)
+        print(s_a1, s_a2)
         x_a_recon, x_b_recon, x_ba1, x_ba2, x_ab1, x_ab2 = [], [], [], [], [], []
         for i in range(x_a.size(0)):
             c_a, s_a_fake = self.gen_a.encode(x_a[i].unsqueeze(0))
@@ -178,7 +186,7 @@ class MUNIT_Trainer(nn.Module):
         """
 
         self.eval()
-        s_a2 = Variable(torch.randn(x_b.size(0), self.style_dim, 1, 1).cuda())
+        s_a2 = self.random_style(x_b)
 
         x_ba1 = []
 
@@ -189,8 +197,8 @@ class MUNIT_Trainer(nn.Module):
 
     def dis_update(self, x_a, x_b, hyperparameters):
         self.dis_opt.zero_grad()
-        s_a = Variable(torch.randn(x_a.size(0), self.style_dim, 1, 1).cuda())
-        s_b = Variable(torch.randn(x_b.size(0), self.style_dim, 1, 1).cuda())
+        s_a = self.random_style(x_a)
+        s_b = self.random_style(x_b)
         # encode
         c_a, _ = self.gen_a.encode(x_a)
         c_b, _ = self.gen_b.encode(x_b)
@@ -210,18 +218,21 @@ class MUNIT_Trainer(nn.Module):
         if self.gen_scheduler is not None:
             self.gen_scheduler.step()
 
-    def resume(self, checkpoint_dir, hyperparameters):
+    def resume(self, checkpoint_dir, hyperparameters, gen_model=None, dis_model=None):
         # Load generators
-        last_model_name = get_model_list(checkpoint_dir, "gen")
-        state_dict = torch.load(last_model_name)
-        self.gen_a.load_state_dict(state_dict['a'])
-        self.gen_b.load_state_dict(state_dict['b'])
-        iterations = int(last_model_name[-11:-3])
+        if gen_model is None:
+            gen_model = get_model_list(checkpoint_dir, "gen") # last gen model
+        gen_state_dict = torch.load(gen_model)
+        self.gen_a.load_state_dict(gen_state_dict['a'])
+        self.gen_b.load_state_dict(gen_state_dict['b'])
+        iterations = int(gen_model[-11:-3])
+
         # Load discriminators
-        last_model_name = get_model_list(checkpoint_dir, "dis")
-        state_dict = torch.load(last_model_name)
-        self.dis_a.load_state_dict(state_dict['a'])
-        self.dis_b.load_state_dict(state_dict['b'])
+        if dis_model is None:
+            dis_model = get_model_list(checkpoint_dir, "dis")
+        dis_state_dict = torch.load(dis_model)
+        self.dis_a.load_state_dict(dis_state_dict['a'])
+        self.dis_b.load_state_dict(dis_state_dict['b'])
         # Load optimizers
         state_dict = torch.load(os.path.join(checkpoint_dir, 'optimizer.pt'))
         self.dis_opt.load_state_dict(state_dict['dis'])
@@ -231,6 +242,12 @@ class MUNIT_Trainer(nn.Module):
         self.gen_scheduler = get_scheduler(self.gen_opt, hyperparameters, iterations)
         print('Resume from iteration %d' % iterations)
         return iterations
+
+    def load_model(self, checkpoint_dir, hyperparameters, iteration):
+        from pathlib import Path
+        gen_model = Path(checkpoint_dir) / f"gen_{iteration:08d}.pt"
+        dis_model = Path(checkpoint_dir) / f"dis_{iteration:08d}.pt"
+        return self.resume(checkpoint_dir, hyperparameters, gen_model.as_posix(), dis_model.as_posix())
 
     def save(self, snapshot_dir, iterations):
         # Save generators, discriminators, and optimizers

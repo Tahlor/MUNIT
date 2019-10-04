@@ -1,4 +1,5 @@
 outputs/
+output/
 src/models/
 data/
 logs/
@@ -14,5 +15,6 @@ src/yaml_generator.py
 *.zip
 *.pkl
 *.pyc
-
+venv/
 datasets/
+models/

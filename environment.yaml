@@ -1,0 +1,33 @@
+name: munit2
+channels:
+  - pytorch
+  - defaults
+dependencies:
+  - ipykernel=5.1.0=py37h39e3cac_0
+  - ipython=7.4.0=py37h39e3cac_0
+  - ipython_genutils=0.2.0=py37_0
+  - jupyter_client=5.2.4=py37_0
+  - jupyter_core=4.4.0=py37_0
+  - jupyterlab=0.35.4=py37hf63ae98_0
+  - jupyterlab_server=0.2.0=py37_0
+  - matplotlib
+  - numpy
+  - pip
+  - python=3.7.3
+  - pytorch=1.2
+  - pyyaml
+  - opencv
+  - scipy
+  - yaml
+  - scikit-learn
+  - pip:
+    - pillow
+    - protobuf
+    - six
+    - tensorboardx
+    - torch
+    - torchfile
+    - torchvision
+prefix: /home/taylor/anaconda3/envs/munit2
+
+
