@@ -8,7 +8,7 @@ os.environ['CUDA_VISIBLE_DEVICES']='0' # 0 is the 2080ti
 #os.environ['CUDA_VISIBLE_DEVICES']=''
 import torch
 
-from utils import get_all_data_loaders, prepare_sub_folder, write_html, write_loss, get_config, write_2images, Timer
+from utils import get_all_data_loaders_better, get_all_data_loaders, prepare_sub_folder, write_html, write_loss, get_config, write_2images, Timer
 import argparse
 from torch.autograd import Variable
 from trainer import MUNIT_Trainer, UNIT_Trainer
@@ -61,23 +61,22 @@ else:
     sys.exit("Only support MUNIT|UNIT")
 
 trainer.cuda()
-train_loader_a, train_loader_b, test_loader_a, test_loader_b, folders = get_all_data_loaders(config)
-#(train_loader_a, tr_a), (train_loader_b, tr_b), (test_loader_a, test_a), (test_loader_b, test_b), folders = get_all_data_loaders_better(config)
+#train_loader_a, train_loader_b, test_loader_a, test_loader_b, folders = get_all_data_loaders(config)
+(train_loader_a, tr_a), (train_loader_b, tr_b), (test_loader_a, test_a), (test_loader_b, test_b), folders = get_all_data_loaders_better(config)
 
-if opts.check_files:
+
+if opts.check_files and False:
     print("Checking files...")
     for folder in folders:
-        if "B" in folder:
-            continue
         print(folder)
-        utils.check_files(folder, delete_bad=True)
+        utils.check_files(folder, delete_bad=False)
     print("Done checking files.")
 
 #print(train_loader_a.dataset[0])
-train_display_images_a = torch.stack([train_loader_a.dataset[i] for i in range(display_size)]).cuda()
-train_display_images_b = torch.stack([train_loader_b.dataset[i] for i in range(display_size)]).cuda()
-test_display_images_a = torch.stack([test_loader_a.dataset[i] for i in range(display_size)]).cuda()
-test_display_images_b = torch.stack([test_loader_b.dataset[i] for i in range(display_size)]).cuda()
+train_display_images_a = torch.stack([train_loader_a.dataset[i][0] for i in range(display_size)]).cuda()
+train_display_images_b = torch.stack([train_loader_b.dataset[i][0] for i in range(display_size)]).cuda()
+test_display_images_a = torch.stack([test_loader_a.dataset[i][0] for i in range(display_size)]).cuda()
+test_display_images_b = torch.stack([test_loader_b.dataset[i][0] for i in range(display_size)]).cuda()
 
 # Setup logger and output folders
 model_name = os.path.splitext(os.path.basename(opts.config))[0]
@@ -92,12 +91,13 @@ shutil.copy(opts.config, os.path.join(output_directory, 'config.yaml')) # copy c
 # Start training
 iterations = trainer.resume(checkpoint_directory, hyperparameters=config) if opts.resume else 0
 while True:
-    for it, (images_a, images_b) in enumerate(zip(train_loader_a, train_loader_b)):
+    for it, ((images_a, paths_a), (images_b, paths_b)) in enumerate(zip(train_loader_a, train_loader_b)):
         trainer.update_learning_rate()
         images_a, images_b = images_a.cuda().detach(), images_b.cuda().detach()
-
+        print(images_a.shape, images_b.shape)
         with Timer("Elapsed time in update: %f"):
             # Main training code
+            print(paths_a, "\n", paths_b)
             trainer.dis_update(images_a, images_b, config)
             trainer.gen_update(images_a, images_b, config)
             torch.cuda.synchronize()

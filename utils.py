@@ -60,7 +60,7 @@ def get_all_data_loaders_better(conf):
     # Use a folder with folders like trainA, default
 
     def prep_loader(input_folder, batch_size=batch_size, train=True, new_size=None,
-                               height=height, width=width, num_workers=4, crop=False, horizontal_flip=False,
+                               height=height, width=width, num_workers=4, crop=True, horizontal_flip=False,
                                 channels = 1, shuffle=True):
         normalization = ((0.5, 0.5, 0.5), (0.5, 0.5, 0.5)) if channels == 3 else ((0.5,), (0.5,))
         transform_list = [transforms.ToTensor(),
@@ -78,10 +78,10 @@ def get_all_data_loaders_better(conf):
         #loader = ImageFolderWithPaths(input_folder, transform=transform)  # our custom dataset
         return loader, dataset
 
-    train_loader_a = prep_loader(os.path.join(conf['data_root'], 'trainA'), batch_size=batch_size, shuffle=False)
-    train_loader_b = prep_loader(os.path.join(conf['data_root'], 'trainB'), batch_size=batch_size, shuffle=False)
-    test_loader_a = prep_loader(os.path.join(conf['data_root'], 'testA'), batch_size=batch_size, shuffle=False)
-    test_loader_b = prep_loader(os.path.join(conf['data_root'], 'testB'), batch_size=batch_size, shuffle=False)
+    train_loader_a = prep_loader(os.path.join(conf['data_root'], 'trainA'), batch_size=batch_size, shuffle=False, new_size=new_size_a)
+    train_loader_b = prep_loader(os.path.join(conf['data_root'], 'trainB'), batch_size=batch_size, shuffle=False, new_size=new_size_b)
+    test_loader_a = prep_loader(os.path.join(conf['data_root'], 'testA'), batch_size=batch_size, shuffle=False, new_size=new_size_a)
+    test_loader_b = prep_loader(os.path.join(conf['data_root'], 'testB'), batch_size=batch_size, shuffle=False, new_size=new_size_b)
 
     folders =(os.path.join(conf['data_root'], 'trainA'), os.path.join(conf['data_root'], 'trainB'), os.path.join(conf['data_root'], 'testA'), os.path.join(conf['data_root'], 'testB'))
 
